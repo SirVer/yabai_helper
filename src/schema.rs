@@ -58,6 +58,18 @@ pub struct Window {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct Display {
+    pub id: u32,
+    pub uuid: String,
+    pub index: u32,
+    pub label: String,
+    pub frame: Frame,
+    pub spaces: Vec<u32>,
+    #[serde(rename = "has-focus")]
+    pub has_focus: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Frame {
     pub x: f64,
     pub y: f64,

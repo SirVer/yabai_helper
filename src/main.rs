@@ -19,6 +19,7 @@ enum SubCommand {
     FocusNext(FocusNextArgs),
     FocusPrev(FocusPrevArgs),
     ToggleSpaceLayout(ToggleSpaceLayoutArgs),
+    FocusNextDisplay(FocusNextDisplayArgs),
 }
 
 #[derive(FromArgs, Debug)]
@@ -35,6 +36,11 @@ struct FocusPrevArgs {}
 /// Toggle on the current space between BSP and Stack.
 #[argh(subcommand, name = "toggle-space-layout")]
 struct ToggleSpaceLayoutArgs {}
+
+#[derive(FromArgs, Debug)]
+/// Focus the next display, rotating through
+#[argh(subcommand, name = "focus-next-display")]
+struct FocusNextDisplayArgs {}
 
 fn get_windows_for_space() -> Result<Vec<Window>> {
     // Execute the `yabai` command to get the JSON output for windows
@@ -56,6 +62,22 @@ fn get_windows_for_space() -> Result<Vec<Window>> {
     Ok(windows)
 }
 
+fn get_display_config() -> Result<Vec<Display>> {
+    // Execute the `yabai` command to get the JSON output for windows
+    let output = Command::new("yabai")
+        .args(&["-m", "query", "--displays"])
+        .output()
+        .expect("Failed to execute yabai command");
+
+    // Ensure the command succeeded
+    if !output.status.success() {
+        panic!("Command returned an error: {:?}", output.status);
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(serde_json::from_str(&stdout)?)
+}
+
 fn get_space_config() -> Result<Space> {
     // Execute the `yabai` command to get the JSON output for windows
     let output = Command::new("yabai")
@@ -74,12 +96,24 @@ fn get_space_config() -> Result<Space> {
 
 fn focus_window_after(mut wins: Vec<Window>) -> Result<()> {
     wins.retain(|w| w.is_visible);
-    let Some(idx) = wins.iter().position(|w| w.has_focus) else {
+    if wins.is_empty() {
         return Ok(());
-    };
+    }
+    let idx = wins.iter().position(|w| w.has_focus).unwrap_or(0);
     let w = wins[(idx + 1) % wins.len()].id;
     Command::new("yabai")
         .args(&["-m", "window", "--focus", &format!("{w}")])
+        .status()
+        .expect("Failed to execute yabai command");
+    Ok(())
+}
+
+fn focus_next_display() -> Result<()> {
+    let displays = get_display_config()?;
+    let idx = displays.iter().position(|d| d.has_focus).unwrap_or(0);
+    let w = displays[(idx + 1) % displays.len()].id;
+    Command::new("yabai")
+        .args(&["-m", "display", "--focus", &format!("{w}")])
         .status()
         .expect("Failed to execute yabai command");
     Ok(())
@@ -117,6 +151,7 @@ fn main() -> Result<()> {
         SubCommand::FocusNext(_) => focus_next_window()?,
         SubCommand::FocusPrev(_) => focus_prev_window()?,
         SubCommand::ToggleSpaceLayout(_) => toggle_space_layout()?,
+        SubCommand::FocusNextDisplay(_) => focus_next_display()?,
     }
     Ok(())
 }
