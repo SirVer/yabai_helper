@@ -111,7 +111,7 @@ fn focus_window_after(mut wins: Vec<Window>) -> Result<()> {
 fn focus_next_display() -> Result<()> {
     let displays = get_display_config()?;
     let idx = displays.iter().position(|d| d.has_focus).unwrap_or(0);
-    let w = displays[(idx + 1) % displays.len()].id;
+    let w = displays[(idx + 1) % displays.len()].index;
     Command::new("yabai")
         .args(&["-m", "display", "--focus", &format!("{w}")])
         .status()
